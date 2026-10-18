@@ -344,34 +344,78 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     roleBadge.textContent = role === 'send' ? '📤 发送' : '📥 接收';
     roleBadge.className = 'role-badge ' + (role === 'send' ? 'send' : 'receive');
     initCanvas();
-    updateStatus('正在连接...', '');
+    updateStatus('正在初始化...', '');
 
     const myId = generateRoomCode();
     peer = createPeer(myId);
+    let connected = false;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    peer.on('open', () => {
-        updateStatus('正在连接到房间...', '');
+    function tryConnect() {
+        if (connected) return;
+        retryCount++;
+        updateStatus(`正在连接房间... (${retryCount}/${maxRetries})`, '');
+
         const connection = peer.connect('syncdraw-' + roomCode, {
             reliable: true,
-            serialization: 'json'
+            serialization: 'json',
+            metadata: { timestamp: Date.now() }
         });
-        setupConnection(connection);
 
-        // 连接超时检测
-        setTimeout(() => {
-            if (!conn || !conn.open) {
-                updateStatus('连接超时，请检查房间号', 'error');
+        // 连接成功
+        connection.on('open', () => {
+            connected = true;
+            setupConnection(connection);
+        });
+
+        // 连接失败，重试
+        connection.on('error', (err) => {
+            console.log('Connection attempt failed:', err);
+            if (!connected && retryCount < maxRetries) {
+                setTimeout(tryConnect, 3000); // 3秒后重试
             }
-        }, 15000);
+        });
+
+        // 单个连接超时
+        setTimeout(() => {
+            if (!connected && retryCount < maxRetries) {
+                connection.close();
+                tryConnect();
+            }
+        }, 10000);
+    }
+
+    peer.on('open', () => {
+        updateStatus('正在查找房间...', '');
+        tryConnect();
     });
+
+    // 总体超时 45 秒
+    setTimeout(() => {
+        if (!connected) {
+            updateStatus('连接超时', 'error');
+            alert('无法连接到房间，请确认：\n1. 房间号是否正确\n2. 房主是否仍在等待页面\n3. 两台设备都能访问互联网');
+        }
+    }, 45000);
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         if (err.type === 'peer-unavailable') {
-            updateStatus('房间不存在', 'error');
-            alert('找不到该房间，请检查房间号是否正确，以及房主是否已在线等待');
+            if (retryCount < maxRetries) {
+                updateStatus('房间未找到，重试中...', '');
+                setTimeout(tryConnect, 3000);
+            } else {
+                updateStatus('房间不存在', 'error');
+                alert('找不到该房间，请检查：\n1. 房间号是否正确\n2. 房主是否已点击「进入画板」并在等待');
+            }
+        } else if (err.type === 'network' || err.type === 'server-error') {
+            updateStatus('网络错误，重试中...', '');
+            if (retryCount < maxRetries) {
+                setTimeout(tryConnect, 3000);
+            }
         } else {
-            updateStatus('连接错误: ' + err.type, 'error');
+            updateStatus('错误: ' + err.type, 'error');
         }
     });
 });
