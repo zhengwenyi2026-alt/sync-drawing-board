@@ -105,6 +105,7 @@ body {
     overflow: hidden;
     background: #fff;
     position: relative;
+    z-index: 1;
     min-height: 0;
     padding-bottom: 80px; /* 留出工具栏空间 */
 }
@@ -127,17 +128,20 @@ body {
     align-items: center;
     gap: 0;
     padding: 8px 12px;
-    background: rgba(50, 50, 52, 0.92);
+    background: rgba(50, 50, 52, 0.95);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: 22px;
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
-    z-index: 100;
+    border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+    z-index: 9999;
     max-width: calc(100vw - 24px);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* 确保在 iOS 上可见 */
+    -webkit-transform: translateX(-50%);
+    transform: translateX(-50%);
 }
 .floating-toolbar::-webkit-scrollbar { display: none; }
 
