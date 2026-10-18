@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>同步画板 - Sync Drawing</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -22,7 +22,7 @@
                     <div class="server-input-group">
                         <label>PeerJS 服务器地址（可选）</label>
                         <input type="text" id="server-url" class="server-input" placeholder="留空使用默认服务器">
-                        <p class="hint">填入自建 PeerJS 服务器地址可大幅加速连接<br>例如: https://your-peerjs-server.com</p>
+                        <p class="hint">填入自建 PeerJS 服务器地址可大幅加速连接</p>
                     </div>
                 </details>
             </div>
@@ -33,13 +33,13 @@
     <div id="create-screen" class="screen">
         <div class="lobby-container">
             <h2>创建房间</h2>
-            <input type="text" id="create-room-code" class="room-input" placeholder="输入房间号（任意字符）" maxlength="20" autocomplete="off">
+            <input type="text" id="create-room-code" class="room-input" placeholder="输入房间号" maxlength="20" autocomplete="off">
             <p class="hint">设定一个房间号，告诉对方输入相同的房间号加入</p>
             <div class="role-select">
                 <p>选择你的角色：</p>
                 <div class="role-buttons">
                     <button class="btn btn-send active" data-role="send">📤 发送（我来画）</button>
-                    <button class="btn btn-receive" data-role="receive"> 接收（看对方画）</button>
+                    <button class="btn btn-receive" data-role="receive">📥 接收（看对方画）</button>
                 </div>
             </div>
             <button id="btn-start-create" class="btn btn-primary">进入画板</button>
@@ -67,88 +67,105 @@
     <!-- 画板页面 -->
     <div id="canvas-screen" class="screen">
         <!-- 顶部信息栏 -->
-        <div class="canvas-header">
-            <div class="room-info">
-                <span>房间: <strong id="current-room-code">------</strong></span>
+        <div class="top-bar">
+            <div class="top-left">
+                <span class="room-label">房间: <strong id="current-room-code">------</strong></span>
                 <span class="role-badge" id="role-badge">发送</span>
-                <span class="status-badge" id="connection-status">连接中...</span>
             </div>
-            <div class="header-actions">
-                <button id="btn-undo" class="btn-tool" title="撤销">↩️</button>
-                <button id="btn-redo" class="btn-tool" title="重做">️</button>
-                <button id="btn-clear" class="btn-tool" title="清空画布">🗑️</button>
-                <button id="btn-download" class="btn-tool" title="下载画作">💾</button>
-                <button id="btn-leave" class="btn-tool btn-danger" title="离开">🚪</button>
+            <div class="top-right">
+                <span class="status-badge" id="connection-status">连接中...</span>
+                <button id="btn-leave" class="top-btn" title="离开">✕</button>
             </div>
         </div>
 
         <!-- 画布 -->
-        <div class="canvas-wrapper">
+        <div class="canvas-area">
             <canvas id="drawing-canvas"></canvas>
         </div>
 
-        <!-- 底部工具栏 -->
-        <div class="toolbar">
-            <!-- 笔刷工具 -->
-            <div class="tool-section">
-                <button class="tool-btn active" data-tool="brush" title="画笔">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.37l-1.34-1.34a1 1 0 00-1.41 0L9 12.25 11.75 15l8.96-8.96a1 1 0 000-1.41z" fill="currentColor"/></svg>
+        <!-- 底部浮动工具栏 (Apple 风格) -->
+        <div class="floating-toolbar">
+            <!-- 撤销/重做 -->
+            <div class="toolbar-group">
+                <button class="tb-btn" id="btn-undo" title="撤销">
+                    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12.5 8c-2.65 0-5.05 1.04-6.83 2.73L3 8v9h9l-2.83-2.83A7.94 7.94 0 0112.5 10c3.04 0 5.65 1.78 6.88 4.34l1.78-.89C19.67 10.27 16.38 8 12.5 8z" fill="currentColor"/></svg>
                 </button>
-                <button class="tool-btn" data-tool="pencil" title="铅笔">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/></svg>
-                </button>
-                <button class="tool-btn" data-tool="marker" title="马克笔">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M18.3 3.3a1.5 1.5 0 00-2.1 0L4 15.5V20h4.5L20.7 5.4a1.5 1.5 0 000-2.1l-2.4-2.4zM6.7 18.3H5.7v-1l9.3-9.3 1 1-9.3 9.3z" fill="currentColor"/></svg>
-                </button>
-                <button class="tool-btn" data-tool="fine" title="细线笔">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor" opacity="0.5"/></svg>
-                </button>
-                <button class="tool-btn" data-tool="eraser" title="橡皮擦">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M16.24 3.56l4.95 4.94a1.5 1.5 0 010 2.12L12 19.81a1.5 1.5 0 01-1.06.44H5a1.5 1.5 0 01-1.5-1.5V12.5a1.5 1.5 0 01.44-1.06l9.18-9.18a1.5 1.5 0 012.12 0zM4.93 20.25h14.14v1.5H3.5v-1.5h1.43z" fill="currentColor"/></svg>
+                <button class="tb-btn" id="btn-redo" title="重做">
+                    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-3.88 0-7.17 2.27-8.66 5.46l1.78.89C5.85 11.78 8.46 10 11.5 10c2.65 0 5.05 1.04 6.83 2.73L21 10v9h-9l2.83-2.83A7.94 7.94 0 0018.4 10.6z" fill="currentColor"/></svg>
                 </button>
             </div>
 
-            <!-- 分隔线 -->
-            <div class="tool-divider"></div>
+            <div class="toolbar-sep"></div>
+
+            <!-- 笔刷工具 -->
+            <div class="toolbar-group scroll-group">
+                <button class="tb-btn tool-btn active" data-tool="brush" title="画笔">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.37l-1.34-1.34a1 1 0 00-1.41 0L9 12.25 11.75 15l8.96-8.96a1 1 0 000-1.41z" fill="currentColor"/></svg>
+                </button>
+                <button class="tb-btn tool-btn" data-tool="pencil" title="铅笔">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/></svg>
+                </button>
+                <button class="tb-btn tool-btn" data-tool="marker" title="马克笔">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M18.3 3.3a1.5 1.5 0 00-2.1 0L4 15.5V20h4.5L20.7 5.4a1.5 1.5 0 000-2.1l-2.4-2.4zM6.7 18.3H5.7v-1l9.3-9.3 1 1-9.3 9.3z" fill="currentColor"/></svg>
+                </button>
+                <button class="tb-btn tool-btn" data-tool="fine" title="细线笔">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor" opacity="0.4"/></svg>
+                </button>
+                <button class="tb-btn tool-btn" data-tool="eraser" title="橡皮擦">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><path d="M16.24 3.56l4.95 4.94a1.5 1.5 0 010 2.12L12 19.81a1.5 1.5 0 01-1.06.44H5a1.5 1.5 0 01-1.5-1.5V12.5a1.5 1.5 0 01.44-1.06l9.18-9.18a1.5 1.5 0 012.12 0zM4.93 20.25h14.14v1.5H3.5v-1.5h1.43z" fill="currentColor"/></svg>
+                </button>
+            </div>
+
+            <div class="toolbar-sep"></div>
 
             <!-- 图形工具 -->
-            <div class="tool-section">
-                <button class="tool-btn" data-tool="line" title="直线">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <div class="toolbar-group scroll-group">
+                <button class="tb-btn tool-btn" data-tool="line" title="直线">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
                 </button>
-                <button class="tool-btn" data-tool="rect" title="矩形">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><rect x="4" y="6" width="16" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <button class="tb-btn tool-btn" data-tool="rect" title="矩形">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><rect x="4" y="6" width="16" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 </button>
-                <button class="tool-btn" data-tool="circle" title="圆形">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <button class="tb-btn tool-btn" data-tool="circle" title="圆形">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 </button>
-                <button class="tool-btn" data-tool="triangle" title="三角形">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><polygon points="12,4 20,20 4,20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <button class="tb-btn tool-btn" data-tool="triangle" title="三角形">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><polygon points="12,4 20,20 4,20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
                 </button>
-                <button class="tool-btn" data-tool="arrow" title="箭头">
-                    <svg viewBox="0 0 24 24" width="28" height="28"><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="10,5 19,5 19,14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <button class="tb-btn tool-btn" data-tool="arrow" title="箭头">
+                    <svg viewBox="0 0 24 24" width="26" height="26"><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="10,5 19,5 19,14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
             </div>
 
-            <!-- 分隔线 -->
-            <div class="tool-divider"></div>
+            <div class="toolbar-sep"></div>
 
             <!-- 颜色和大小 -->
-            <div class="tool-section color-section">
-                <div class="color-presets">
+            <div class="toolbar-group color-group">
+                <div class="color-row">
                     <button class="color-dot active" data-color="#000000" style="background:#000"></button>
                     <button class="color-dot" data-color="#e74c3c" style="background:#e74c3c"></button>
                     <button class="color-dot" data-color="#3498db" style="background:#3498db"></button>
                     <button class="color-dot" data-color="#2ecc71" style="background:#2ecc71"></button>
                     <button class="color-dot" data-color="#f39c12" style="background:#f39c12"></button>
                     <button class="color-dot" data-color="#9b59b6" style="background:#9b59b6"></button>
-                    <button class="color-dot" data-color="#ffffff" style="background:#fff; border: 1px solid #ccc"></button>
                 </div>
-                <div class="size-control">
+                <div class="size-row">
                     <input type="range" id="brush-size" min="1" max="50" value="3">
-                    <span id="brush-size-label">3px</span>
+                    <span id="brush-size-label">3</span>
                 </div>
-                <input type="color" id="color-picker" value="#000000" title="自定义颜色">
+                <input type="color" id="color-picker" value="#000000" title="更多颜色">
+            </div>
+
+            <div class="toolbar-sep"></div>
+
+            <!-- 操作 -->
+            <div class="toolbar-group">
+                <button class="tb-btn" id="btn-clear" title="清空">
+                    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg>
+                </button>
+                <button class="tb-btn" id="btn-download" title="下载">
+                    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/></svg>
+                </button>
             </div>
         </div>
     </div>
