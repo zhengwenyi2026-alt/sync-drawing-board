@@ -217,6 +217,22 @@ btnLeave.addEventListener('click', () => {
     }
 });
 
+// ========== 角色选择 ==========
+document.querySelectorAll('.role-buttons').forEach(container => {
+    container.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            container.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+});
+
+function getSelectedRole(screenId) {
+    const container = document.querySelector(`#${screenId} .role-buttons`);
+    const active = container.querySelector('.btn.active');
+    return active ? active.dataset.role : 'send';
+}
+
 // ========== PeerJS 连接 ==========
 function updateStatus(text, type) {
     connectionStatus.textContent = text;
@@ -276,10 +292,11 @@ document.getElementById('btn-create').addEventListener('click', () => {
 });
 
 document.getElementById('btn-start-create').addEventListener('click', () => {
+    const role = getSelectedRole('create-screen');
     showScreen('canvas');
     currentRoomCode.textContent = roomCode;
-    roleBadge.textContent = '🏠 房主';
-    roleBadge.className = 'role-badge send';
+    roleBadge.textContent = role === 'send' ? '📤 发送' : '📥 接收';
+    roleBadge.className = 'role-badge ' + (role === 'send' ? 'send' : 'receive');
     initCanvas();
     updateStatus('正在初始化...', '');
 
@@ -320,11 +337,12 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     }
 
     roomCode = inputCode;
+    const role = getSelectedRole('join-screen');
 
     showScreen('canvas');
     currentRoomCode.textContent = roomCode;
-    roleBadge.textContent = '👤 加入者';
-    roleBadge.className = 'role-badge receive';
+    roleBadge.textContent = role === 'send' ? '📤 发送' : '📥 接收';
+    roleBadge.className = 'role-badge ' + (role === 'send' ? 'send' : 'receive');
     initCanvas();
     updateStatus('正在连接...', '');
 

@@ -24,7 +24,14 @@
         <div class="lobby-container">
             <h2>你的房间号</h2>
             <p class="room-code" id="room-code-display">------</p>
-            <p class="hint">在其他设备上打开此网站，输入此房间号加入<br>双方都可以绘画，实时同步到对方</p>
+            <p class="hint">在其他设备上打开此网站，输入此房间号加入</p>
+            <div class="role-select">
+                <p>选择你的角色：</p>
+                <div class="role-buttons">
+                    <button class="btn btn-send active" data-role="send">📤 发送（我来画）</button>
+                    <button class="btn btn-receive" data-role="receive">📥 接收（看对方画）</button>
+                </div>
+            </div>
             <button id="btn-start-create" class="btn btn-primary">进入画板</button>
             <button class="btn btn-back" onclick="goBack()">返回</button>
         </div>
@@ -35,7 +42,13 @@
         <div class="lobby-container">
             <h2>加入房间</h2>
             <input type="text" id="room-code-input" class="room-input" placeholder="输入房间号" maxlength="6">
-            <p class="hint">输入对方提供的房间号，双方都可以绘画和同步</p>
+            <div class="role-select">
+                <p>选择你的角色：</p>
+                <div class="role-buttons">
+                    <button class="btn btn-send active" data-role="send">📤 发送（我来画）</button>
+                    <button class="btn btn-receive" data-role="receive">📥 接收（看对方画）</button>
+                </div>
+            </div>
             <button id="btn-start-join" class="btn btn-primary">加入并进入画板</button>
             <button class="btn btn-back" onclick="goBack()">返回</button>
         </div>
