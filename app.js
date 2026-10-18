@@ -424,42 +424,72 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     const role = getSelectedRole('join-screen');
     showScreen('canvas');
     currentRoomCode.textContent = roomCode;
-    roleBadge.textContent = role === 'send' ? '📤 发送' : '📥 接收';
+    roleBadge.textContent = role === 'send' ? ' 发送' : '📥 接收';
     roleBadge.className = 'role-badge ' + (role === 'send' ? 'send' : 'receive');
     initCanvas();
     updateStatus('正在初始化...', '');
 
     peer = new Peer('syncdraw-' + roomCode + '-' + Math.random().toString(36).substr(2, 6), getPeerConfig());
     let connected = false, retryCount = 0;
-    const maxRetries = 8;
+    const maxRetries = 10;
+    let overallTimer = null;
 
     function tryConnect() {
         if (connected) return;
         retryCount++;
         updateStatus(`连接中... (${retryCount}/${maxRetries})`, '');
         const c = peer.connect('syncdraw-' + roomCode, { reliable: true, serialization: 'json' });
-        c.on('open', () => { connected = true; setupConnection(c); });
-        c.on('error', () => { if (!connected && retryCount < maxRetries) setTimeout(tryConnect, 2000); });
-        setTimeout(() => { if (!connected && retryCount < maxRetries) { c.close(); tryConnect(); } }, 8000);
+
+        c.on('open', () => {
+            connected = true;
+            if (overallTimer) clearTimeout(overallTimer);
+            setupConnection(c);
+        });
+        c.on('error', (err) => {
+            console.log('Connection error, retrying...', err);
+            if (!connected && retryCount < maxRetries) {
+                setTimeout(tryConnect, 2000);
+            } else if (!connected) {
+                updateStatus('连接失败', 'error');
+                alert('无法连接到房间，请确认房主是否在线，然后刷新重试');
+            }
+        });
+        // 单次连接 10 秒超时
+        setTimeout(() => {
+            if (!connected && retryCount < maxRetries) { try { c.close(); } catch(e){} tryConnect(); }
+        }, 10000);
     }
 
-    peer.on('open', () => { updateStatus('查找房间中...', ''); tryConnect(); });
-    setTimeout(() => {
-        if (!connected) {
-            updateStatus('连接超时', 'error');
-            alert('无法连接，请确认：\n1. 房间号是否正确\n2. 房主是否在等待\n3. 两台设备都能上网');
-        }
-    }, 60000);
+    peer.on('open', () => {
+        updateStatus('查找房间中...', '');
+        tryConnect();
+        // 从 peer 准备好之后才开始计总超时
+        overallTimer = setTimeout(() => {
+            if (!connected) {
+                updateStatus('连接超时', 'error');
+                alert('连接超时，请确认：\n1. 房间号是否正确\n2. 房主是否已点击「进入画板」在等待\n3. 两台设备都能上网\n\n提示：刷新页面重试');
+            }
+        }, 50000);
+    });
 
     peer.on('error', (err) => {
+        console.error('Peer error:', err.type);
         if (err.type === 'peer-unavailable') {
-            if (retryCount >= maxRetries && !connected) {
+            // peer-unavailable 也触发重试
+            if (!connected && retryCount < maxRetries) {
+                updateStatus('房间未就绪，重试中...', '');
+                setTimeout(tryConnect, 2000);
+            } else if (!connected) {
                 updateStatus('房间不存在', 'error');
-                alert('找不到该房间，请检查房间号和房主是否在等待');
+                alert('找不到该房间，请检查：\n1. 房间号是否正确\n2. 房主是否已点击「进入画板」并在等待');
             }
         } else if (err.type === 'network' || err.type === 'server-error') {
-            if (retryCount < maxRetries && !connected) { updateStatus('网络错误，重试中...', ''); setTimeout(tryConnect, 2000); }
-            else updateStatus('网络错误', 'error');
+            if (!connected && retryCount < maxRetries) {
+                updateStatus('网络错误，重试中...', '');
+                setTimeout(tryConnect, 2000);
+            } else {
+                updateStatus('网络错误', 'error');
+            }
         } else if (err.type !== 'peer-unavailable') {
             updateStatus('错误: ' + err.type, 'error');
         }
