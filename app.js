@@ -265,6 +265,10 @@ document.getElementById('btn-start-create').addEventListener('click', () => {
 
     peer.on('open', () => {
         updateStatus('等待对方加入...', '');
+        // 等待几秒确保 peer 在服务器上完全注册
+        setTimeout(() => {
+            updateStatus('等待对方加入...', 'connected');
+        }, 3000);
     });
     peer.on('connection', (connection) => { setupConnection(connection); });
     peer.on('error', (err) => {
@@ -332,17 +336,19 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         if (err.type === 'peer-unavailable') {
-            if (retryCount < maxRetries) {
-                updateStatus('未找到房间，重试中...', '');
-                setTimeout(tryConnect, 2000);
-            } else {
+            // 不立即报错，让 tryConnect 的重试机制处理
+            if (retryCount >= maxRetries && !connected) {
                 updateStatus('房间不存在', 'error');
-                alert('找不到该房间，请检查房间号是否正确，以及房主是否已在等待');
+                alert('找不到该房间，请检查：\n1. 房间号是否正确\n2. 房主是否已点击「进入画板」并在等待');
             }
         } else if (err.type === 'network' || err.type === 'server-error') {
-            updateStatus('网络错误，重试中...', '');
-            if (retryCount < maxRetries) setTimeout(tryConnect, 2000);
-        } else {
+            if (retryCount < maxRetries && !connected) {
+                updateStatus('网络错误，重试中...', '');
+                setTimeout(tryConnect, 2000);
+            } else {
+                updateStatus('网络错误', 'error');
+            }
+        } else if (err.type !== 'peer-unavailable') {
             updateStatus('错误: ' + err.type, 'error');
         }
     });
