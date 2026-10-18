@@ -1,0 +1,317 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    color: #fff;
+    overflow: hidden;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    height: 100vh;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* Lobby */
+.lobby-container {
+    margin: auto;
+    text-align: center;
+    padding: 2rem;
+    max-width: 500px;
+    width: 100%;
+}
+
+.logo {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #e94560, #f5a623);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: #aaa;
+    margin-bottom: 2.5rem;
+    font-size: 1.1rem;
+}
+
+.lobby-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.8rem 1.8rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #e94560, #c23152);
+    color: #fff;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #533483, #0f3460);
+    color: #fff;
+    border: 1px solid #e94560;
+}
+
+.btn-back {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+    margin-top: 1rem;
+}
+
+.btn-back:hover {
+    color: #fff;
+    border-color: #fff;
+}
+
+/* Room code display */
+.room-code {
+    font-size: 3rem;
+    font-weight: bold;
+    letter-spacing: 0.5rem;
+    color: #f5a623;
+    margin: 1.5rem 0;
+    font-family: 'Courier New', monospace;
+    background: rgba(255,255,255,0.05);
+    padding: 1rem;
+    border-radius: 12px;
+    border: 2px dashed #f5a623;
+}
+
+.room-input {
+    font-size: 2rem;
+    text-align: center;
+    letter-spacing: 0.5rem;
+    font-family: 'Courier New', monospace;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid #e94560;
+    border-radius: 12px;
+    color: #fff;
+    padding: 1rem;
+    width: 100%;
+    margin: 1.5rem 0;
+    outline: none;
+}
+
+.room-input:focus {
+    border-color: #f5a623;
+    box-shadow: 0 0 20px rgba(245,166,35,0.2);
+}
+
+.hint {
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Role selection */
+.role-select {
+    margin: 1.5rem 0;
+}
+
+.role-select p {
+    margin-bottom: 0.8rem;
+    color: #ccc;
+}
+
+.role-buttons {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.role-buttons .btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    color: #aaa;
+    border: 1px solid #444;
+}
+
+.role-buttons .btn.active {
+    background: linear-gradient(135deg, #e94560, #c23152);
+    color: #fff;
+    border-color: #e94560;
+}
+
+/* Canvas screen */
+#canvas-screen {
+    flex-direction: column;
+}
+
+.canvas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    background: rgba(0,0,0,0.4);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.room-info {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.role-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.role-badge.send {
+    background: #e94560;
+}
+
+.role-badge.receive {
+    background: #533483;
+}
+
+.status-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    background: #f5a623;
+    color: #000;
+}
+
+.status-badge.connected {
+    background: #2ecc71;
+}
+
+.status-badge.error {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.canvas-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.canvas-tools input[type="color"] {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+}
+
+.canvas-tools input[type="range"] {
+    width: 80px;
+}
+
+#brush-size-label {
+    font-size: 0.8rem;
+    color: #aaa;
+    min-width: 30px;
+}
+
+.btn-tool {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.btn-tool:hover {
+    background: rgba(255,255,255,0.15);
+}
+
+.btn-tool.btn-danger {
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.btn-tool.btn-danger:hover {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.btn-tool.eraser-active {
+    background: #f5a623;
+    color: #000;
+    border-color: #f5a623;
+}
+
+/* Canvas wrapper */
+.canvas-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #f0f0f0;
+}
+
+#drawing-canvas {
+    background: #fff;
+    cursor: crosshair;
+    touch-action: none;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .logo {
+        font-size: 2rem;
+    }
+    
+    .canvas-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .canvas-tools {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .room-code {
+        font-size: 2rem;
+        letter-spacing: 0.3rem;
+    }
+}
