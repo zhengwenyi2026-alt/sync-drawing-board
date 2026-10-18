@@ -2,11 +2,25 @@
 let peer = null;
 let conn = null;
 let roomCode = '';
-let myRole = 'send'; // 'send' or 'receive'
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 let eraserMode = false;
+let isRemoteDrawing = false; // 标记是否正在接收远程绘制
+
+// ========== PeerJS 配置（加速连接） ==========
+const peerConfig = {
+    debug: 0,
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun.services.mozilla.com:3478' }
+        ]
+    }
+};
 
 // ========== DOM 元素 ==========
 const screens = {
@@ -40,6 +54,7 @@ function goBack() {
         peer.destroy();
         peer = null;
     }
+    conn = null;
     showScreen('lobby');
 }
 
@@ -75,14 +90,13 @@ function initCanvas() {
 // ========== 画板绘制逻辑 ==========
 function getPos(e) {
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
     let x, y;
-    if (e.touches) {
-        x = (e.touches[0].clientX - rect.left);
-        y = (e.touches[0].clientY - rect.top);
+    if (e.touches && e.touches.length > 0) {
+        x = e.touches[0].clientX - rect.left;
+        y = e.touches[0].clientY - rect.top;
     } else {
-        x = (e.clientX - rect.left);
-        y = (e.clientY - rect.top);
+        x = e.clientX - rect.left;
+        y = e.clientY - rect.top;
     }
     return { x, y };
 }
@@ -97,17 +111,17 @@ function drawLine(x1, y1, x2, y2, color, size, eraser) {
 }
 
 function startDraw(e) {
-    if (myRole !== 'send') return;
+    // 如果正在接收远程绘制，不启动本地绘制
+    if (isRemoteDrawing) return;
     isDrawing = true;
     const pos = getPos(e);
     lastX = pos.x;
     lastY = pos.y;
-    // 画一个点
     drawLine(pos.x, pos.y, pos.x, pos.y, colorPicker.value, parseInt(brushSize.value), eraserMode);
 }
 
 function draw(e) {
-    if (!isDrawing || myRole !== 'send') return;
+    if (!isDrawing || isRemoteDrawing) return;
     e.preventDefault();
     const pos = getPos(e);
     drawLine(lastX, lastY, pos.x, pos.y, colorPicker.value, parseInt(brushSize.value), eraserMode);
@@ -139,8 +153,8 @@ canvas.addEventListener('mousedown', startDraw);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDraw);
 canvas.addEventListener('mouseleave', stopDraw);
-canvas.addEventListener('touchstart', startDraw);
-canvas.addEventListener('touchmove', draw);
+canvas.addEventListener('touchstart', startDraw, { passive: false });
+canvas.addEventListener('touchmove', draw, { passive: false });
 canvas.addEventListener('touchend', stopDraw);
 
 // ========== 工具栏事件 ==========
@@ -155,22 +169,44 @@ btnEraser.addEventListener('click', () => {
 
 btnClear.addEventListener('click', () => {
     if (confirm('确定清空画布吗？')) {
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        // 通知对端清空
+        clearCanvas();
         if (conn && conn.open) {
             conn.send({ type: 'clear' });
         }
     }
 });
 
+function clearCanvas() {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+}
+
+// 下载功能
 btnDownload.addEventListener('click', () => {
-    const link = document.createElement('a');
-    link.download = `drawing-${roomCode}-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    try {
+        // 创建一个临时 canvas 来导出（避免 DPR 问题）
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = canvas.clientWidth;
+        exportCanvas.height = canvas.clientHeight;
+        const exportCtx = exportCanvas.getContext('2d');
+        exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+
+        const dataURL = exportCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `drawing-${roomCode || 'local'}-${Date.now()}.png`;
+        link.href = dataURL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (err) {
+        console.error('Download error:', err);
+        alert('下载失败: ' + err.message);
+    }
 });
 
 btnLeave.addEventListener('click', () => {
@@ -183,21 +219,6 @@ btnLeave.addEventListener('click', () => {
     }
 });
 
-// ========== 角色选择 ==========
-document.querySelectorAll('.role-buttons').forEach(container => {
-    container.querySelectorAll('.btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            container.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        });
-    });
-});
-
-function getSelectedRole(container) {
-    const active = container.querySelector('.btn.active');
-    return active ? active.dataset.role : 'send';
-}
-
 // ========== PeerJS 连接 ==========
 function updateStatus(text, type) {
     connectionStatus.textContent = text;
@@ -206,36 +227,35 @@ function updateStatus(text, type) {
 }
 
 function createPeer(id) {
-    return new Peer('syncdraw-' + id, {
-        debug: 0
-    });
+    return new Peer('syncdraw-' + id, peerConfig);
 }
 
 function setupConnection(connection) {
     conn = connection;
 
     conn.on('open', () => {
-        updateStatus('已连接', 'connected');
-        // 发送当前画布状态给新加入者
-        if (myRole === 'send') {
-            const imageData = canvas.toDataURL('image/jpeg', 0.5);
-            conn.send({ type: 'sync', imageData: imageData });
-        }
+        updateStatus('已连接 ✓', 'connected');
+        // 双方都发送当前画布状态进行同步
+        const imageData = canvas.toDataURL('image/jpeg', 0.5);
+        conn.send({ type: 'sync', imageData: imageData });
     });
 
     conn.on('data', (data) => {
         if (data.type === 'draw') {
+            // 接收远程绘制
+            isRemoteDrawing = true;
             drawLine(data.x1, data.y1, data.x2, data.y2, data.color, data.size, data.eraser);
+            isRemoteDrawing = false;
         } else if (data.type === 'clear') {
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
+            clearCanvas();
         } else if (data.type === 'sync') {
             // 接收完整画布同步
             const img = new Image();
             img.onload = () => {
-                ctx.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight);
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
             };
             img.src = data.imageData;
         }
@@ -260,21 +280,16 @@ document.getElementById('btn-create').addEventListener('click', () => {
 });
 
 document.getElementById('btn-start-create').addEventListener('click', () => {
-    const roleContainer = document.querySelector('#create-screen .role-buttons');
-    myRole = getSelectedRole(roleContainer);
-
     showScreen('canvas');
     currentRoomCode.textContent = roomCode;
-    roleBadge.textContent = myRole === 'send' ? '📤 发送' : '📥 接收';
-    roleBadge.className = 'role-badge ' + myRole;
+    roleBadge.textContent = '🏠 房主';
+    roleBadge.className = 'role-badge send';
     initCanvas();
-    updateStatus('等待连接...', '');
+    updateStatus('正在初始化...', '');
 
-    // 创建 Peer 并等待连接
     peer = createPeer(roomCode);
 
-    peer.on('open', (id) => {
-        console.log('My peer ID:', id);
+    peer.on('open', () => {
         updateStatus('等待对方加入...', '');
     });
 
@@ -285,11 +300,11 @@ document.getElementById('btn-start-create').addEventListener('click', () => {
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         if (err.type === 'unavailable-id') {
-            alert('房间号已被占用，请重试');
-            roomCode = generateRoomCode();
-            document.getElementById('room-code-display').textContent = roomCode;
+            alert('房间号已被占用，请返回重新发起');
+        } else if (err.type === 'network' || err.type === 'server-error') {
+            updateStatus('网络错误，请刷新重试', 'error');
         } else {
-            updateStatus('连接错误: ' + err.type, 'error');
+            updateStatus('错误: ' + err.type, 'error');
         }
     });
 });
@@ -308,43 +323,48 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
         return;
     }
 
-    const roleContainer = document.querySelector('#join-screen .role-buttons');
-    myRole = getSelectedRole(roleContainer);
     roomCode = inputCode;
 
     showScreen('canvas');
     currentRoomCode.textContent = roomCode;
-    roleBadge.textContent = myRole === 'send' ? '📤 发送' : '📥 接收';
-    roleBadge.className = 'role-badge ' + myRole;
+    roleBadge.textContent = '👤 加入者';
+    roleBadge.className = 'role-badge receive';
     initCanvas();
     updateStatus('正在连接...', '');
 
-    // 创建本地 peer 并连接到房间
     const myId = generateRoomCode();
     peer = createPeer(myId);
 
     peer.on('open', () => {
+        updateStatus('正在连接到房间...', '');
         const connection = peer.connect('syncdraw-' + roomCode, {
-            reliable: true
+            reliable: true,
+            serialization: 'json'
         });
         setupConnection(connection);
+
+        // 连接超时检测
+        setTimeout(() => {
+            if (!conn || !conn.open) {
+                updateStatus('连接超时，请检查房间号', 'error');
+            }
+        }, 15000);
     });
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         if (err.type === 'peer-unavailable') {
             updateStatus('房间不存在', 'error');
-            alert('找不到该房间，请检查房间号是否正确');
+            alert('找不到该房间，请检查房间号是否正确，以及房主是否已在线等待');
         } else {
             updateStatus('连接错误: ' + err.type, 'error');
         }
     });
 });
 
-// ========== 窗口大小变化时重新调整画布 ==========
+// ========== 窗口大小变化 ==========
 window.addEventListener('resize', () => {
     if (screens.canvas.classList.contains('active')) {
-        // 保存当前画面
         const imageData = canvas.toDataURL('image/png');
         const wrapper = document.querySelector('.canvas-wrapper');
         const dpr = window.devicePixelRatio || 1;
@@ -353,7 +373,6 @@ window.addEventListener('resize', () => {
         canvas.style.width = wrapper.clientWidth + 'px';
         canvas.style.height = wrapper.clientHeight + 'px';
         ctx.scale(dpr, dpr);
-        // 恢复画面
         const img = new Image();
         img.onload = () => {
             ctx.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight);
