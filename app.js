@@ -6,7 +6,6 @@ let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 let eraserMode = false;
-let isRemoteDrawing = false; // 标记是否正在接收远程绘制
 
 // ========== PeerJS 配置（加速连接） ==========
 const peerConfig = {
@@ -111,8 +110,7 @@ function drawLine(x1, y1, x2, y2, color, size, eraser) {
 }
 
 function startDraw(e) {
-    // 如果正在接收远程绘制，不启动本地绘制
-    if (isRemoteDrawing) return;
+    e.preventDefault(); // 阻止触摸默认行为（滚动等）
     isDrawing = true;
     const pos = getPos(e);
     lastX = pos.x;
@@ -121,7 +119,7 @@ function startDraw(e) {
 }
 
 function draw(e) {
-    if (!isDrawing || isRemoteDrawing) return;
+    if (!isDrawing) return;
     e.preventDefault();
     const pos = getPos(e);
     drawLine(lastX, lastY, pos.x, pos.y, colorPicker.value, parseInt(brushSize.value), eraserMode);
@@ -243,9 +241,7 @@ function setupConnection(connection) {
     conn.on('data', (data) => {
         if (data.type === 'draw') {
             // 接收远程绘制
-            isRemoteDrawing = true;
             drawLine(data.x1, data.y1, data.x2, data.y2, data.color, data.size, data.eraser);
-            isRemoteDrawing = false;
         } else if (data.type === 'clear') {
             clearCanvas();
         } else if (data.type === 'sync') {
