@@ -11,6 +11,10 @@ const MAX_UNDO = 30;
 // ========== PeerJS 配置 ==========
 function getPeerConfig() {
     const serverUrl = document.getElementById('server-url').value.trim();
+    // 默认使用 Vercel 专属信令服务器
+    const defaultServer = 'https://sync-drawing.vercel.app';
+    const urlStr = serverUrl || defaultServer;
+    
     const config = {
         debug: 0,
         config: {
@@ -22,15 +26,13 @@ function getPeerConfig() {
             ]
         }
     };
-    if (serverUrl) {
-        try {
-            const url = new URL(serverUrl);
-            config.host = url.hostname;
-            config.port = url.port || (url.protocol === 'https:' ? 443 : 80);
-            config.path = url.pathname.replace(/\/$/, '') || '/';
-            config.secure = url.protocol === 'https:';
-        } catch (e) { console.warn('Invalid server URL', e); }
-    }
+    try {
+        const url = new URL(urlStr);
+        config.host = url.hostname;
+        config.port = url.port || (url.protocol === 'https:' ? 443 : 80);
+        config.path = '/peerjs';
+        config.secure = url.protocol === 'https:';
+    } catch (e) { console.warn('Invalid server URL', e); }
     return config;
 }
 
