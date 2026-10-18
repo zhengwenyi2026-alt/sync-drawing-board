@@ -19,17 +19,5 @@ const peerServer = ExpressPeerServer(app, {
 
 app.use('/peerjs', peerServer);
 
-const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`PeerJS server running on port ${PORT}`);
-});
-
-peerServer.on('connection', (client) => {
-  console.log('Client connected:', client.getId());
-});
-
-peerServer.on('disconnect', (client) => {
-  console.log('Client disconnected:', client.getId());
-});
-
-module.exports = server;
+// Vercel serverless export
+module.exports = app;
