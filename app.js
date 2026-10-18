@@ -350,7 +350,7 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     peer = createPeer(myId);
     let connected = false;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 8;
 
     function tryConnect() {
         if (connected) return;
@@ -391,13 +391,13 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
         tryConnect();
     });
 
-    // 总体超时 45 秒
+    // 总体超时 60 秒
     setTimeout(() => {
         if (!connected) {
             updateStatus('连接超时', 'error');
-            alert('无法连接到房间，请确认：\n1. 房间号是否正确\n2. 房主是否仍在等待页面\n3. 两台设备都能访问互联网');
+            alert('无法连接到房间，请确认：\n1. 房间号是否正确\n2. 房主是否仍在等待页面\n3. 两台设备都能访问互联网\n\n提示：可以刷新页面重新尝试');
         }
-    }, 45000);
+    }, 60000);
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
