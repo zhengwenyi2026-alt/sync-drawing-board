@@ -7,19 +7,35 @@ let lastX = 0;
 let lastY = 0;
 let eraserMode = false;
 
-// ========== PeerJS 配置（加速连接） ==========
-const peerConfig = {
-    debug: 0,
-    config: {
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun.services.mozilla.com:3478' }
-        ]
+// ========== PeerJS 配置 ==========
+function getPeerConfig() {
+    const serverUrl = document.getElementById('server-url').value.trim();
+    const config = {
+        debug: 0,
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun.services.mozilla.com:3478' }
+            ]
+        }
+    };
+    // 如果用户填了自定义服务器
+    if (serverUrl) {
+        try {
+            const url = new URL(serverUrl);
+            config.host = url.hostname;
+            config.port = url.port || (url.protocol === 'https:' ? 443 : 80);
+            config.path = url.pathname.replace(/\/$/, '') || '/';
+            config.secure = url.protocol === 'https:';
+        } catch (e) {
+            console.warn('Invalid server URL, using default', e);
+        }
     }
-};
+    return config;
+}
 
 // ========== DOM 元素 ==========
 const screens = {
@@ -49,22 +65,9 @@ function showScreen(name) {
 }
 
 function goBack() {
-    if (peer) {
-        peer.destroy();
-        peer = null;
-    }
+    if (peer) { peer.destroy(); peer = null; }
     conn = null;
     showScreen('lobby');
-}
-
-// ========== 生成房间号 ==========
-function generateRoomCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return code;
 }
 
 // ========== 初始化画布 ==========
@@ -73,20 +76,18 @@ function initCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const width = wrapper.clientWidth;
     const height = wrapper.clientHeight;
-
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
     ctx.scale(dpr, dpr);
-
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 }
 
-// ========== 画板绘制逻辑 ==========
+// ========== 画板绘制 ==========
 function getPos(e) {
     const rect = canvas.getBoundingClientRect();
     let x, y;
@@ -110,7 +111,7 @@ function drawLine(x1, y1, x2, y2, color, size, eraser) {
 }
 
 function startDraw(e) {
-    e.preventDefault(); // 阻止触摸默认行为（滚动等）
+    e.preventDefault();
     isDrawing = true;
     const pos = getPos(e);
     lastX = pos.x;
@@ -123,30 +124,15 @@ function draw(e) {
     e.preventDefault();
     const pos = getPos(e);
     drawLine(lastX, lastY, pos.x, pos.y, colorPicker.value, parseInt(brushSize.value), eraserMode);
-
-    // 发送绘制数据到对端
     if (conn && conn.open) {
-        conn.send({
-            type: 'draw',
-            x1: lastX,
-            y1: lastY,
-            x2: pos.x,
-            y2: pos.y,
-            color: colorPicker.value,
-            size: parseInt(brushSize.value),
-            eraser: eraserMode
-        });
+        conn.send({ type: 'draw', x1: lastX, y1: lastY, x2: pos.x, y2: pos.y, color: colorPicker.value, size: parseInt(brushSize.value), eraser: eraserMode });
     }
-
     lastX = pos.x;
     lastY = pos.y;
 }
 
-function stopDraw() {
-    isDrawing = false;
-}
+function stopDraw() { isDrawing = false; }
 
-// 画布事件
 canvas.addEventListener('mousedown', startDraw);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDraw);
@@ -155,28 +141,16 @@ canvas.addEventListener('touchstart', startDraw, { passive: false });
 canvas.addEventListener('touchmove', draw, { passive: false });
 canvas.addEventListener('touchend', stopDraw);
 
-// ========== 工具栏事件 ==========
-brushSize.addEventListener('input', () => {
-    brushSizeLabel.textContent = brushSize.value + 'px';
-});
+// ========== 工具栏 ==========
+brushSize.addEventListener('input', () => { brushSizeLabel.textContent = brushSize.value + 'px'; });
 
 btnEraser.addEventListener('click', () => {
     eraserMode = !eraserMode;
     btnEraser.classList.toggle('eraser-active', eraserMode);
 });
 
-btnClear.addEventListener('click', () => {
-    if (confirm('确定清空画布吗？')) {
-        clearCanvas();
-        if (conn && conn.open) {
-            conn.send({ type: 'clear' });
-        }
-    }
-});
-
 function clearCanvas() {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#ffffff';
@@ -184,25 +158,26 @@ function clearCanvas() {
     ctx.restore();
 }
 
-// 下载功能
+btnClear.addEventListener('click', () => {
+    if (confirm('确定清空画布吗？')) {
+        clearCanvas();
+        if (conn && conn.open) conn.send({ type: 'clear' });
+    }
+});
+
 btnDownload.addEventListener('click', () => {
     try {
-        // 创建一个临时 canvas 来导出（避免 DPR 问题）
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = canvas.clientWidth;
         exportCanvas.height = canvas.clientHeight;
-        const exportCtx = exportCanvas.getContext('2d');
-        exportCtx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
-
-        const dataURL = exportCanvas.toDataURL('image/png');
+        exportCanvas.getContext('2d').drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
         const link = document.createElement('a');
         link.download = `drawing-${roomCode || 'local'}-${Date.now()}.png`;
-        link.href = dataURL;
+        link.href = exportCanvas.toDataURL('image/png');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     } catch (err) {
-        console.error('Download error:', err);
         alert('下载失败: ' + err.message);
     }
 });
@@ -211,8 +186,7 @@ btnLeave.addEventListener('click', () => {
     if (confirm('确定离开房间吗？')) {
         if (conn) conn.close();
         if (peer) peer.destroy();
-        peer = null;
-        conn = null;
+        peer = null; conn = null;
         showScreen('lobby');
     }
 });
@@ -228,40 +202,30 @@ document.querySelectorAll('.role-buttons').forEach(container => {
 });
 
 function getSelectedRole(screenId) {
-    const container = document.querySelector(`#${screenId} .role-buttons`);
-    const active = container.querySelector('.btn.active');
+    const active = document.querySelector(`#${screenId} .role-buttons .btn.active`);
     return active ? active.dataset.role : 'send';
 }
 
-// ========== PeerJS 连接 ==========
+// ========== 连接管理 ==========
 function updateStatus(text, type) {
     connectionStatus.textContent = text;
     connectionStatus.className = 'status-badge';
     if (type) connectionStatus.classList.add(type);
 }
 
-function createPeer(id) {
-    return new Peer('syncdraw-' + id, peerConfig);
-}
-
 function setupConnection(connection) {
     conn = connection;
-
     conn.on('open', () => {
-        updateStatus('已连接 ✓', 'connected');
-        // 双方都发送当前画布状态进行同步
+        updateStatus('已连接', 'connected');
         const imageData = canvas.toDataURL('image/jpeg', 0.5);
-        conn.send({ type: 'sync', imageData: imageData });
+        conn.send({ type: 'sync', imageData });
     });
-
     conn.on('data', (data) => {
         if (data.type === 'draw') {
-            // 接收远程绘制
             drawLine(data.x1, data.y1, data.x2, data.y2, data.color, data.size, data.eraser);
         } else if (data.type === 'clear') {
             clearCanvas();
         } else if (data.type === 'sync') {
-            // 接收完整画布同步
             const img = new Image();
             img.onload = () => {
                 ctx.save();
@@ -272,27 +236,23 @@ function setupConnection(connection) {
             img.src = data.imageData;
         }
     });
-
-    conn.on('close', () => {
-        updateStatus('已断开', 'error');
-        alert('对方已断开连接');
-    });
-
-    conn.on('error', (err) => {
-        console.error('Connection error:', err);
-        updateStatus('连接错误', 'error');
-    });
+    conn.on('close', () => { updateStatus('已断开', 'error'); alert('对方已断开连接'); });
+    conn.on('error', () => { updateStatus('连接错误', 'error'); });
 }
 
-// ========== 发起房间 ==========
+// ========== 创建房间 ==========
 document.getElementById('btn-create').addEventListener('click', () => {
-    roomCode = generateRoomCode();
-    document.getElementById('room-code-display').textContent = roomCode;
     showScreen('create');
+    document.getElementById('create-room-code').value = '';
+    document.getElementById('create-room-code').focus();
 });
 
 document.getElementById('btn-start-create').addEventListener('click', () => {
+    const code = document.getElementById('create-room-code').value.trim().toUpperCase();
+    if (!code) { alert('请输入房间号'); return; }
+    roomCode = code;
     const role = getSelectedRole('create-screen');
+
     showScreen('canvas');
     currentRoomCode.textContent = roomCode;
     roleBadge.textContent = role === 'send' ? '📤 发送' : '📥 接收';
@@ -300,22 +260,19 @@ document.getElementById('btn-start-create').addEventListener('click', () => {
     initCanvas();
     updateStatus('正在初始化...', '');
 
-    peer = createPeer(roomCode);
+    const peerConfig = getPeerConfig();
+    peer = new Peer('syncdraw-' + roomCode, peerConfig);
 
     peer.on('open', () => {
         updateStatus('等待对方加入...', '');
     });
-
-    peer.on('connection', (connection) => {
-        setupConnection(connection);
-    });
-
+    peer.on('connection', (connection) => { setupConnection(connection); });
     peer.on('error', (err) => {
         console.error('Peer error:', err);
         if (err.type === 'unavailable-id') {
-            alert('房间号已被占用，请返回重新发起');
+            alert('该房间号已被占用，请换一个');
         } else if (err.type === 'network' || err.type === 'server-error') {
-            updateStatus('网络错误，请刷新重试', 'error');
+            updateStatus('网络错误，请检查服务器地址', 'error');
         } else {
             updateStatus('错误: ' + err.type, 'error');
         }
@@ -325,18 +282,14 @@ document.getElementById('btn-start-create').addEventListener('click', () => {
 // ========== 加入房间 ==========
 document.getElementById('btn-join').addEventListener('click', () => {
     showScreen('join');
-    document.getElementById('room-code-input').value = '';
-    document.getElementById('room-code-input').focus();
+    document.getElementById('join-room-code').value = '';
+    document.getElementById('join-room-code').focus();
 });
 
 document.getElementById('btn-start-join').addEventListener('click', () => {
-    const inputCode = document.getElementById('room-code-input').value.trim().toUpperCase();
-    if (!inputCode || inputCode.length < 4) {
-        alert('请输入有效的房间号');
-        return;
-    }
-
-    roomCode = inputCode;
+    const code = document.getElementById('join-room-code').value.trim().toUpperCase();
+    if (!code) { alert('请输入房间号'); return; }
+    roomCode = code;
     const role = getSelectedRole('join-screen');
 
     showScreen('canvas');
@@ -346,8 +299,9 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     initCanvas();
     updateStatus('正在初始化...', '');
 
-    const myId = generateRoomCode();
-    peer = createPeer(myId);
+    const peerConfig = getPeerConfig();
+    const myId = 'syncdraw-' + roomCode + '-' + Math.random().toString(36).substr(2, 6);
+    peer = new Peer(myId, peerConfig);
     let connected = false;
     let retryCount = 0;
     const maxRetries = 8;
@@ -355,47 +309,23 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
     function tryConnect() {
         if (connected) return;
         retryCount++;
-        updateStatus(`正在连接房间... (${retryCount}/${maxRetries})`, '');
-
-        const connection = peer.connect('syncdraw-' + roomCode, {
-            reliable: true,
-            serialization: 'json',
-            metadata: { timestamp: Date.now() }
+        updateStatus(`连接中... (${retryCount}/${maxRetries})`, '');
+        const connection = peer.connect('syncdraw-' + roomCode, { reliable: true, serialization: 'json' });
+        connection.on('open', () => { connected = true; setupConnection(connection); });
+        connection.on('error', () => {
+            if (!connected && retryCount < maxRetries) setTimeout(tryConnect, 2000);
         });
-
-        // 连接成功
-        connection.on('open', () => {
-            connected = true;
-            setupConnection(connection);
-        });
-
-        // 连接失败，重试
-        connection.on('error', (err) => {
-            console.log('Connection attempt failed:', err);
-            if (!connected && retryCount < maxRetries) {
-                setTimeout(tryConnect, 3000); // 3秒后重试
-            }
-        });
-
-        // 单个连接超时
         setTimeout(() => {
-            if (!connected && retryCount < maxRetries) {
-                connection.close();
-                tryConnect();
-            }
-        }, 10000);
+            if (!connected && retryCount < maxRetries) { connection.close(); tryConnect(); }
+        }, 8000);
     }
 
-    peer.on('open', () => {
-        updateStatus('正在查找房间...', '');
-        tryConnect();
-    });
+    peer.on('open', () => { updateStatus('查找房间中...', ''); tryConnect(); });
 
-    // 总体超时 60 秒
     setTimeout(() => {
         if (!connected) {
             updateStatus('连接超时', 'error');
-            alert('无法连接到房间，请确认：\n1. 房间号是否正确\n2. 房主是否仍在等待页面\n3. 两台设备都能访问互联网\n\n提示：可以刷新页面重新尝试');
+            alert('无法连接，请确认：\n1. 房间号是否正确\n2. 房主是否已点击「进入画板」在等待\n3. 两台设备都能上网\n\n提示：刷新页面重试');
         }
     }, 60000);
 
@@ -403,17 +333,15 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
         console.error('Peer error:', err);
         if (err.type === 'peer-unavailable') {
             if (retryCount < maxRetries) {
-                updateStatus('房间未找到，重试中...', '');
-                setTimeout(tryConnect, 3000);
+                updateStatus('未找到房间，重试中...', '');
+                setTimeout(tryConnect, 2000);
             } else {
                 updateStatus('房间不存在', 'error');
-                alert('找不到该房间，请检查：\n1. 房间号是否正确\n2. 房主是否已点击「进入画板」并在等待');
+                alert('找不到该房间，请检查房间号是否正确，以及房主是否已在等待');
             }
         } else if (err.type === 'network' || err.type === 'server-error') {
             updateStatus('网络错误，重试中...', '');
-            if (retryCount < maxRetries) {
-                setTimeout(tryConnect, 3000);
-            }
+            if (retryCount < maxRetries) setTimeout(tryConnect, 2000);
         } else {
             updateStatus('错误: ' + err.type, 'error');
         }
@@ -422,19 +350,16 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
 
 // ========== 窗口大小变化 ==========
 window.addEventListener('resize', () => {
-    if (screens.canvas.classList.contains('active')) {
-        const imageData = canvas.toDataURL('image/png');
-        const wrapper = document.querySelector('.canvas-wrapper');
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = wrapper.clientWidth * dpr;
-        canvas.height = wrapper.clientHeight * dpr;
-        canvas.style.width = wrapper.clientWidth + 'px';
-        canvas.style.height = wrapper.clientHeight + 'px';
-        ctx.scale(dpr, dpr);
-        const img = new Image();
-        img.onload = () => {
-            ctx.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight);
-        };
-        img.src = imageData;
-    }
+    if (!screens.canvas.classList.contains('active')) return;
+    const imageData = canvas.toDataURL('image/png');
+    const wrapper = document.querySelector('.canvas-wrapper');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = wrapper.clientWidth * dpr;
+    canvas.height = wrapper.clientHeight * dpr;
+    canvas.style.width = wrapper.clientWidth + 'px';
+    canvas.style.height = wrapper.clientHeight + 'px';
+    ctx.scale(dpr, dpr);
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight); };
+    img.src = imageData;
 });

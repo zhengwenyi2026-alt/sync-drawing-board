@@ -7,24 +7,34 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- 首页：发起/加入房间 -->
+    <!-- 首页 -->
     <div id="lobby" class="screen active">
         <div class="lobby-container">
             <h1 class="logo">🎨 同步画板</h1>
-            <p class="subtitle">实时同步你的绘画，跨设备共享画布</p>
+            <p class="subtitle">实时同步绘画，跨设备共享画布</p>
             <div class="lobby-buttons">
-                <button id="btn-create" class="btn btn-primary">发起房间</button>
+                <button id="btn-create" class="btn btn-primary">创建房间</button>
                 <button id="btn-join" class="btn btn-secondary">加入房间</button>
+            </div>
+            <div class="server-config">
+                <details>
+                    <summary>️ 高级设置（自定义服务器加速）</summary>
+                    <div class="server-input-group">
+                        <label>PeerJS 服务器地址（可选）</label>
+                        <input type="text" id="server-url" class="server-input" placeholder="留空使用默认服务器">
+                        <p class="hint">填入自建 PeerJS 服务器地址可大幅加速连接<br>例如: https://your-peerjs-server.com</p>
+                    </div>
+                </details>
             </div>
         </div>
     </div>
 
-    <!-- 发起房间：显示房间号 -->
+    <!-- 创建房间 -->
     <div id="create-screen" class="screen">
         <div class="lobby-container">
-            <h2>你的房间号</h2>
-            <p class="room-code" id="room-code-display">------</p>
-            <p class="hint">在其他设备上打开此网站，输入此房间号加入</p>
+            <h2>创建房间</h2>
+            <input type="text" id="create-room-code" class="room-input" placeholder="输入房间号（任意字符）" maxlength="20" autocomplete="off">
+            <p class="hint">设定一个房间号，告诉对方输入相同的房间号加入</p>
             <div class="role-select">
                 <p>选择你的角色：</p>
                 <div class="role-buttons">
@@ -37,15 +47,15 @@
         </div>
     </div>
 
-    <!-- 加入房间：输入房间号 -->
+    <!-- 加入房间 -->
     <div id="join-screen" class="screen">
         <div class="lobby-container">
             <h2>加入房间</h2>
-            <input type="text" id="room-code-input" class="room-input" placeholder="输入房间号" maxlength="6">
+            <input type="text" id="join-room-code" class="room-input" placeholder="输入房间号" maxlength="20" autocomplete="off">
             <div class="role-select">
                 <p>选择你的角色：</p>
                 <div class="role-buttons">
-                    <button class="btn btn-send active" data-role="send">📤 发送（我来画）</button>
+                    <button class="btn btn-send active" data-role="send"> 发送（我来画）</button>
                     <button class="btn btn-receive" data-role="receive">📥 接收（看对方画）</button>
                 </div>
             </div>
@@ -67,7 +77,7 @@
                 <input type="range" id="brush-size" min="1" max="50" value="3" title="画笔大小">
                 <span id="brush-size-label">3px</span>
                 <button id="btn-eraser" class="btn-tool" title="橡皮擦">🧹</button>
-                <button id="btn-clear" class="btn-tool" title="清空画布">🗑️</button>
+                <button id="btn-clear" class="btn-tool" title="清空画布">️</button>
                 <button id="btn-download" class="btn-tool" title="下载画作">💾 下载</button>
                 <button id="btn-leave" class="btn-tool btn-danger" title="离开房间">🚪 离开</button>
             </div>
