@@ -11,9 +11,6 @@ const MAX_UNDO = 30;
 // ========== PeerJS 配置 ==========
 function getPeerConfig() {
     const serverUrl = document.getElementById('server-url').value.trim();
-    // 默认使用 Vercel 专属信令服务器
-    const defaultServer = 'https://sync-drawing.vercel.app';
-    const urlStr = serverUrl || defaultServer;
     
     const config = {
         debug: 0,
@@ -22,17 +19,23 @@ function getPeerConfig() {
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' }
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun.services.mozilla.com:3478' }
             ]
         }
     };
-    try {
-        const url = new URL(urlStr);
-        config.host = url.hostname;
-        config.port = url.port || (url.protocol === 'https:' ? 443 : 80);
-        config.path = '/peerjs';
-        config.secure = url.protocol === 'https:';
-    } catch (e) { console.warn('Invalid server URL', e); }
+    
+    if (serverUrl) {
+        // 用户自定义服务器（需要支持 WebSocket 长连接）
+        try {
+            const url = new URL(serverUrl);
+            config.host = url.hostname;
+            config.port = url.port || (url.protocol === 'https:' ? 443 : 80);
+            config.path = '/peerjs';
+            config.secure = url.protocol === 'https:';
+        } catch (e) { console.warn('Invalid server URL', e); }
+    }
+    // 不留空则使用 PeerJS 默认公共服务器（支持 WebSocket）
     return config;
 }
 

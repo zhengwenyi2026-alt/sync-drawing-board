@@ -18,11 +18,11 @@
             </div>
             <div class="server-config">
                 <details>
-                    <summary>️ 高级设置（自定义服务器加速）</summary>
+                    <summary> 高级设置（自定义信令服务器）</summary>
                     <div class="server-input-group">
-                        <label>PeerJS 服务器地址（可选）</label>
-                        <input type="text" id="server-url" class="server-input" placeholder="留空使用默认服务器">
-                        <p class="hint">填入自建 PeerJS 服务器地址可大幅加速连接</p>
+                        <label>PeerJS 服务器地址（可选，需支持 WebSocket）</label>
+                        <input type="text" id="server-url" class="server-input" placeholder="留空使用 PeerJS 公共服务器">
+                        <p class="hint">默认使用 PeerJS 公共服务器<br>如有自建服务器可填入加速连接</p>
                     </div>
                 </details>
             </div>
