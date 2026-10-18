@@ -63,9 +63,9 @@ function goBack() {
 
 // ========== 画布 ==========
 function initCanvas() {
-    const wrapper = document.querySelector('.canvas-wrapper');
+    const area = document.querySelector('.canvas-area');
     const dpr = window.devicePixelRatio || 1;
-    const w = wrapper.clientWidth, h = wrapper.clientHeight;
+    const w = area.clientWidth, h = area.clientHeight;
     canvas.width = w * dpr; canvas.height = h * dpr;
     canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
     ctx.scale(dpr, dpr);
@@ -500,10 +500,10 @@ document.getElementById('btn-start-join').addEventListener('click', () => {
 window.addEventListener('resize', () => {
     if (!screens.canvas.classList.contains('active')) return;
     const imageData = canvas.toDataURL('image/png');
-    const wrapper = document.querySelector('.canvas-wrapper');
+    const area = document.querySelector('.canvas-area');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = wrapper.clientWidth * dpr; canvas.height = wrapper.clientHeight * dpr;
-    canvas.style.width = wrapper.clientWidth + 'px'; canvas.style.height = wrapper.clientHeight + 'px';
+    canvas.width = area.clientWidth * dpr; canvas.height = area.clientHeight * dpr;
+    canvas.style.width = area.clientWidth + 'px'; canvas.style.height = area.clientHeight + 'px';
     ctx.scale(dpr, dpr);
     const img = new Image();
     img.onload = () => { ctx.drawImage(img, 0, 0, canvas.clientWidth, canvas.clientHeight); };
